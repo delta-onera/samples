@@ -49,7 +49,6 @@ for i in range(len(testdata)):
 #note that writing the network is not a big deal
 #the problem is to find the one on which optimization will behave correctly
 #here a very simple network just to illustrate common operations
-print("def inpainting network")
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
