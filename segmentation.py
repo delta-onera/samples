@@ -30,7 +30,7 @@ torch.cuda.manual_seed(seed)
 #load data
 imsize=512
 testdata = []
-testdata.append((PIL.Image.open("data/image.jpg").copy(),PIL.Image.open("data/mask_downscaled.jpg").convert("RGB").copy()))
+testdata.append((PIL.Image.open("data/image.jpg").copy(),PIL.Image.open("data/mask.jpg").convert("RGB").copy()))
     
 #this is a non sense from a learning point of view, but here, we just learn on the testing data for simplicity 
 traindata = testdata.copy()
@@ -61,33 +61,46 @@ class VGG(nn.Module):
         self.conv5_1 = nn.Conv2d(512, 512, kernel_size=3,padding=1, bias=True)
         self.conv5_2 = nn.Conv2d(512, 512, kernel_size=3,padding=1, bias=True)
         self.conv5_3 = nn.Conv2d(512, 512, kernel_size=3,padding=1, bias=True)
-        self.prob = nn.Conv2d(512, 2, kernel_size=1, bias=True)
+        
+        self.prob1 = nn.Conv2d(64, 2, kernel_size=1, bias=True)
+        self.prob2 = nn.Conv2d(128, 2, kernel_size=1, bias=True)
+        self.prob4 = nn.Conv2d(256, 2, kernel_size=1, bias=True)
+        self.prob8 = nn.Conv2d(512, 2, kernel_size=1, bias=True)
+        self.prob16 = nn.Conv2d(512, 2, kernel_size=1, bias=True)
 
     def forward(self, x):
         x = F.relu(self.conv1_1(x))
         x = F.relu(self.conv1_2(x))
+        p1 = self.prob1(x)
         x = F.max_pool2d(x,kernel_size=2, stride=2,return_indices=False)
         
         x = F.relu(self.conv2_1(x))
         x = F.relu(self.conv2_2(x))
+        p2 = self.prob2(x)
+        p2=F.upsample_nearest(p2, scale_factor=2)
         x = F.max_pool2d(x,kernel_size=2, stride=2,return_indices=False)
         
         x = F.relu(self.conv3_1(x))
         x = F.relu(self.conv3_2(x))
         x = F.relu(self.conv3_3(x))
+        p4 = self.prob4(x)
+        p4=F.upsample_nearest(p4, scale_factor=4)
         x = F.max_pool2d(x,kernel_size=2, stride=2,return_indices=False)
         
         x = F.relu(self.conv4_1(x))
         x = F.relu(self.conv4_2(x))
         x = F.relu(self.conv4_3(x))
+        p8 = self.prob8(x)
+        p8=F.upsample_nearest(p8, scale_factor=8)
         x = F.max_pool2d(x,kernel_size=2, stride=2,return_indices=False)
         
         x = F.relu(self.conv5_1(x))
         x = F.relu(self.conv5_2(x))
         x = F.relu(self.conv5_3(x))
-        
-        x = self.prob(x)
-        return x
+        p16 = self.prob16(x)
+        p16=F.upsample_nearest(p16, scale_factor=16)
+
+        return p1/16+p2/8+p4/4+p8/2+p16
         
     def load_weights(self, model_path):
         correspondance=[]
@@ -123,8 +136,6 @@ class VGG(nn.Module):
             if not fb:
                 print(name2+".bias not found")
         self.load_state_dict(model_dict)
-
-vggpooling = 16
         
 vgg = VGG()
 vgg.load_weights("data/vgg16-00b39a1b.pth")
@@ -132,7 +143,7 @@ vgg.cuda()
 vgg.train()
 
 #define solver parameter, here we will have static parameter
-lr = 0.001
+lr = 0.0001
 momentum = 0.5
 optimizer = optim.SGD(vgg.parameters(), lr=lr, momentum=momentum)
 losslayer = nn.CrossEntropyLoss()
@@ -153,14 +164,14 @@ def tonumpy4D(image):
     return imagenp4
     
 def tonumpy4Dmask(mask):
-    imagenp4 = np.zeros((1,1, imsize//vggpooling, imsize//vggpooling), dtype=int)
+    imagenp4 = np.zeros((1,1, imsize, imsize), dtype=int)
     imagenp3 = np.asarray(mask)
-    for r in range(imsize//vggpooling):
-        for c in range(imsize//vggpooling):
+    for r in range(imsize):
+        for c in range(imsize):
             imagenp4[0][0][r][c]=(imagenp3[r][c][0]!=0)
     return imagenp4
 
-nbepoch = 15
+nbepoch = 60
 
 print("start training testing")
 for epoch in range(nbepoch):
@@ -196,9 +207,9 @@ for x,y in testdata:
     outputtensor = vgg(inputtensor)
     
     proba = outputtensor.cpu().data.numpy()
-    impred = np.zeros((imsize//vggpooling, imsize//vggpooling,3), dtype=int)
-    for r in range(imsize//vggpooling):
-        for c in range(imsize//vggpooling):
+    impred = np.zeros((imsize, imsize,3), dtype=int)
+    for r in range(imsize):
+        for c in range(imsize):
             for ch in range(3):
                 impred[r][c][ch] = 255*((proba[0][1][r][c]-proba[0][0][r][c])>0)
     predim = PIL.Image.fromarray(np.uint8(impred))
