@@ -26,3 +26,7 @@ Well, such learning from scratch will need **much** more time to produce the sam
 ## segmentation
 The script *segmentation.py* does the same thing *segmentation_downscaled.py* but producing a mask with the image size.
 A good GPU is expected to run this script.
+
+## licence
+These samples are BSD for research.
+Contact the ONERA for other purpose.
