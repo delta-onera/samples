@@ -27,6 +27,11 @@ Well, such learning from scratch will need **much** more time to produce the sam
 The script *segmentation.py* does the same thing *segmentation_downscaled.py* but producing a mask with the image size.
 A good GPU is expected to run this script.
 
+## classification
+The script *classification.py* is an example of how to use deep learning for the most traditionnal computer vision task: image classification.
+For the purpose of examples, we copy a very small part of CIFAR10 (please see the real cifar10 dataset **https://www.cs.toronto.edu/~kriz/cifar.html**).
+A network is trained from scratch to recognize is input image is a cat - car - plane - bird.
+
 ## licence
 These samples are BSD for research.
 Contact the ONERA for other purpose.
